@@ -1,0 +1,4 @@
+[submodule "BounceTales"]
+	path = BounceTales
+	url = https://github.com/HelloOO7/BounceTales
+	branch = master
