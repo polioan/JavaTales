@@ -14,20 +14,25 @@ case "$(uname -m)" in
   *) echo "Unsupported architecture"; exit 1 ;;
 esac
 
-target="bun-${os}-${arch}"
+libc=""
+if [[ "$os" == linux ]] && ldd --version 2>&1 | grep -qi musl; then
+  libc="-musl"
+fi
+
+target="bun-${os}-${arch}${libc}"
 output="./java-tales"
 
 rm -f "$output"
 
 docker run --rm \
   --user "$(id -u):$(id -g)" \
+  --env HOME=/tmp \
   --volume "$PWD:/app" \
   --workdir /app \
   --entrypoint bun \
   oven/bun:1.4.4 \
-  build --compile \
-  --target="$target" \
-  ./cli/cli.ts \
-  --outfile="$output"
-
-echo "Built $output ($target)"
+  ./cli/cli.ts compile-self \
+    --input=./cli/cli.ts \
+    --output="$output" \
+    --target="$target" \
+    --force

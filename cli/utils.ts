@@ -3,7 +3,7 @@ import fsp from 'node:fs/promises'
 import path from 'node:path'
 import os from 'node:os'
 import process from 'node:process'
-import { ArgvError } from './argv'
+import { ArgvError } from './argv-error'
 
 export async function exists(targetPath: string) {
   try {

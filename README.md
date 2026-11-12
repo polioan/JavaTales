@@ -86,7 +86,7 @@ If Bun installed - https://bun.com/get
 ```shell
 git clone --recursive https://github.com/polioan/JavaTales.git
 cd ./JavaTales/
-bun build ./cli/cli.ts --compile --outfile ./java-tales
+bun ./cli/cli.ts compile-self --input=./cli/cli.ts --output=./java-tales
 ```
 
 ### Build CLI without installing Bun (kinda)

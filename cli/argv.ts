@@ -1,32 +1,12 @@
 import process from 'node:process'
 import path from 'node:path'
 import { z } from 'zod'
+import { ArgvError } from './argv-error'
 import { exists, isDirectory, isFile, stripPrefix, untildify } from './utils'
 
 export type ArgvOptions<T extends z.ZodType> = {
   schema: T
   argv?: string[] | null | undefined
-}
-
-export type ArgvErrorOptions = {
-  cause?: unknown
-}
-
-export class ArgvError extends Error {
-  constructor(message: string, options?: ArgvErrorOptions | null) {
-    const opt = options ?? {}
-
-    super(
-      message,
-      opt.cause == null
-        ? {}
-        : {
-            cause: opt.cause,
-          }
-    )
-
-    this.name = 'ArgvError'
-  }
 }
 
 export type ArgvResult<T extends z.ZodType> =
@@ -198,9 +178,6 @@ export const o = {
         for (const issue of parsedArrayPart.error.issues) {
           ctx.addIssue({
             ...issue,
-            code: 'custom',
-            message: issue.message,
-            path: issue.path,
           })
         }
         return z.NEVER
@@ -226,9 +203,7 @@ export const o = {
         for (const issue of parsedObjectPart.error.issues) {
           ctx.addIssue({
             ...issue,
-            code: 'custom',
-            message: issue.message,
-            path: issue.path,
+            continue: true,
           })
         }
         return z.NEVER
