@@ -159,6 +159,51 @@ const run = o.flags(
 
 export type Run = z.output<typeof run>
 
-export const schema = z.union([help, compileSelf, check, unpack, pack, run])
+const levelJson = o.flags(
+  z.tuple([z.literal('level-json')]),
+  z.strictObject({
+    input: o.inputFile(),
+    output: o.outputPath(),
+    force: o
+      .booleanish()
+      .nullable()
+      .optional()
+      .transform(arg => {
+        return arg ?? false
+      }),
+    ...common,
+  })
+)
+
+export type LevelJson = z.output<typeof levelJson>
+
+const levelJsonToParallax = o.flags(
+  z.tuple([z.literal('level-json-to-parallax')]),
+  z.strictObject({
+    input: o.inputFile(),
+    output: o.outputPath(),
+    force: o
+      .booleanish()
+      .nullable()
+      .optional()
+      .transform(arg => {
+        return arg ?? false
+      }),
+    ...common,
+  })
+)
+
+export type LevelJsonToParallax = z.output<typeof levelJsonToParallax>
+
+export const schema = z.union([
+  help,
+  compileSelf,
+  check,
+  unpack,
+  pack,
+  run,
+  levelJson,
+  levelJsonToParallax,
+])
 
 export type Schema = z.output<typeof schema>

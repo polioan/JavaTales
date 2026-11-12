@@ -1,0 +1,44 @@
+{
+  "files.exclude": {
+    "**/.git": true,
+    "**/.svn": true,
+    "**/.hg": true,
+    "**/.DS_Store": true,
+    "**/Thumbs.db": true,
+    "**/CVS": true
+  },
+  "search.exclude": {
+    "**/node_modules": true,
+    "**/bower_components": true,
+    "**/*.code-search": true,
+    "**/dist": true,
+    "**/dist-ssr": true,
+    "**/coverage": true,
+    "**/logs": true,
+    "**/package-lock.json": true,
+    "**/pnpm-lock.yaml": true,
+    "**/bun.lock": true
+  },
+  "cSpell.words": [],
+  "terminal.integrated.profiles.linux": {
+    "tales": {
+      "path": "bash",
+      "args": ["--rcfile", "${workspaceFolder}/bashrc"]
+    }
+  },
+  "terminal.integrated.defaultProfile.linux": "tales",
+  "terminal.integrated.profiles.osx": {
+    "tales": {
+      "path": "bash",
+      "args": ["--rcfile", "${workspaceFolder}/bashrc"]
+    }
+  },
+  "terminal.integrated.defaultProfile.osx": "tales",
+  "terminal.integrated.profiles.windows": {
+    "tales": {
+      "source": "Git Bash",
+      "args": ["--rcfile", "${workspaceFolder}/bashrc"]
+    }
+  },
+  "terminal.integrated.defaultProfile.windows": "tales"
+}

@@ -41,6 +41,14 @@ java-tales pack --input=./bounce-tales --output=./bounce-tales.jar
 
 java-tales run --input=./bounce-tales.jar
 
+#### level-json - naive level to JSON parser
+
+java-tales level-json --input=./bounce-tales/Levels/level_campaign01.rlef --output=./level.json
+
+#### level-json-to-parallax - level JSON to parallax HTML
+
+java-tales level-json-to-parallax --input=./level.json --output=./level.html
+
 #### compile-self - build CLI into executable
 
 All flags are optional
