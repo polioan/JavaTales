@@ -37,6 +37,10 @@ java-tales check
 
 java-tales pack --input=./bounce-tales --output=./bounce-tales.jar
 
+#### Midlet - build arbitrary MIDlet
+
+java-tales midlet --input=./hello-world-midlet/src/com/example/HelloMIDlet.java --output=./hello.jar
+
 #### Run - run emulator to test things
 
 java-tales run --input=./bounce-tales.jar
@@ -105,3 +109,4 @@ bash ./compile.sh
 - [Java](./Java.md)
 - https://github.com/zb3/freej2me-web
 - https://github.com/polioan/BounceTalesViewer - Bounce Tales levels WEB viewer using this project
+- https://github.com/phd051199/phoneME-iOS

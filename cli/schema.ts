@@ -195,6 +195,24 @@ const levelJsonToParallax = o.flags(
 
 export type LevelJsonToParallax = z.output<typeof levelJsonToParallax>
 
+const midlet = o.flags(
+  z.tuple([z.literal('midlet')]),
+  z.strictObject({
+    input: o.inputFile(),
+    output: o.outputPath(),
+    force: o
+      .booleanish()
+      .nullable()
+      .optional()
+      .transform(arg => {
+        return arg ?? false
+      }),
+    ...common,
+  })
+)
+
+export type Midlet = z.output<typeof midlet>
+
 export const schema = z.union([
   help,
   compileSelf,
@@ -204,6 +222,7 @@ export const schema = z.union([
   run,
   levelJson,
   levelJsonToParallax,
+  midlet,
 ])
 
 export type Schema = z.output<typeof schema>

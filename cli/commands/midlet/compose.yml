@@ -1,0 +1,30 @@
+services:
+  midlet:
+    build:
+      context: '.'
+      dockerfile: 'Dockerfile'
+    image: 'javatales-midlet:local'
+    pull_policy: 'build'
+    restart: 'no'
+    stdin_open: false
+    tty: false
+    read_only: true
+    user: '${MIDLET_UID:?set MIDLET_UID}:${MIDLET_GID:?set MIDLET_GID}'
+    hostname: 'localhost'
+    network_mode: 'none'
+    working_dir: '/tmp'
+    environment:
+      HOME: '/tmp'
+      TMPDIR: '/tmp'
+      MIDLET_CLASS: '${MIDLET_CLASS:?set MIDLET_CLASS}'
+      MIDLET_NAME: '${MIDLET_NAME:?set MIDLET_NAME}'
+    tmpfs:
+      - '/tmp:size=1g'
+    volumes:
+      - type: 'bind'
+        source: '${MIDLET_INPUT:?set MIDLET_INPUT}'
+        target: '/input'
+        read_only: true
+      - type: 'bind'
+        source: '${MIDLET_OUTPUT:?set MIDLET_OUTPUT}'
+        target: '/output/midlet.jar'

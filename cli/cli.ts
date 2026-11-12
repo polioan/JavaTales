@@ -6,6 +6,7 @@ import { compileSelf } from './commands/compile-self'
 import { help } from './commands/help'
 import { levelJson } from './commands/level-json'
 import { levelJsonToParallax } from './commands/level-json-to-parallax'
+import { midlet } from './commands/midlet'
 import { pack } from './commands/pack'
 import { run } from './commands/run'
 import { unpack } from './commands/unpack'
@@ -68,6 +69,11 @@ async function main() {
 
   if (action === 'level-json-to-parallax') {
     await levelJsonToParallax(parsed.data)
+    return
+  }
+
+  if (action === 'midlet') {
+    await midlet(parsed.data)
     return
   }
 }
