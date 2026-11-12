@@ -4,6 +4,8 @@ import { Argv } from './argv'
 import { check } from './commands/check'
 import { compileSelf } from './commands/compile-self'
 import { help } from './commands/help'
+import { pack } from './commands/pack'
+import { run } from './commands/run'
 import { unpack } from './commands/unpack'
 import { schema } from './schema'
 import { runMain } from './utils'
@@ -44,6 +46,16 @@ async function main() {
 
   if (action === 'unpack') {
     await unpack(parsed.data)
+    return
+  }
+
+  if (action === 'pack') {
+    await pack(parsed.data)
+    return
+  }
+
+  if (action === 'run') {
+    await run(parsed.data)
     return
   }
 }

@@ -23,15 +23,23 @@ java-tales COMMAND [ARGS...]
 
 #### Unpack - unpack Bounce Tales jar into readable sources
 
-java-tales --input=./bounce-tales.jar --output=./bounce-tales
+java-tales unpack --input=./bounce-tales.jar --output=./bounce-tales
 
 Or with force flag if you want to override output directory
 
-java-tales --input=./bounce-tales.jar --output=./bounce-tales --force
+java-tales unpack --input=./bounce-tales.jar --output=./bounce-tales --force
 
 #### Check - check if setup for JavaTales correct
 
 java-tales check
+
+#### Pack - pack sources back into jar
+
+java-tales pack --input=./bounce-tales --output=./bounce-tales.jar
+
+#### Run - run emulator to test things
+
+java-tales run --input=./bounce-tales.jar
 
 #### compile-self - build CLI into executable
 
@@ -50,6 +58,8 @@ java-tales --help
 - Bun and TypeScript - CLI
 - Docker / Docker Compose - dependencies (I don't wanna million i386 packages, IDE I don't like or fighting with Java installations)
 - HelloOO7 [BounceTools](https://github.com/HelloOO7/BounceTales) and Java - anything else
+
+Bloat, but I have NASA PC, so it's fine - this [recipes](./cli/commands/) can be crafted on Debian based OS anyways
 
 ### Run CLI
 
@@ -85,3 +95,5 @@ bash ./compile.sh
 
 - https://github.com/HelloOO7/BounceTales
 - [Java](./Java.md)
+- https://github.com/zb3/freej2me-web
+- https://github.com/polioan/BounceTalesViewer - Bounce Tales levels WEB viewer using this project

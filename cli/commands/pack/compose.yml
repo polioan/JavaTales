@@ -1,0 +1,32 @@
+services:
+  pack:
+    build:
+      context: '.'
+      dockerfile: 'Dockerfile'
+    image: 'javatales-pack:local'
+    pull_policy: 'build'
+    restart: 'no'
+    stdin_open: false
+    tty: false
+    read_only: true
+    user: '${PACK_UID:?set PACK_UID}:${PACK_GID:?set PACK_GID}'
+    hostname: 'localhost'
+    network_mode: 'none'
+    working_dir: '/tmp'
+    environment:
+      HOME: '/tmp'
+      TMPDIR: '/tmp'
+    tmpfs:
+      - '/tmp:size=1g'
+    volumes:
+      - type: 'bind'
+        source: '${JAVA_TALES_SOURCES:?set JAVA_TALES_SOURCES}'
+        target: '/sources'
+        read_only: true
+      - type: 'bind'
+        source: '${PACK_INPUT:?set PACK_INPUT}'
+        target: '/input'
+        read_only: true
+      - type: 'bind'
+        source: '${PACK_OUTPUT:?set PACK_OUTPUT}'
+        target: '/output/game.jar'

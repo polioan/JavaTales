@@ -131,6 +131,34 @@ const unpack = o.flags(
 
 export type Unpack = z.output<typeof unpack>
 
-export const schema = z.union([help, compileSelf, check, unpack])
+const pack = o.flags(
+  z.tuple([z.literal('pack')]),
+  z.strictObject({
+    input: o.inputFolder(),
+    output: o.outputPath(),
+    force: o
+      .booleanish()
+      .nullable()
+      .optional()
+      .transform(arg => {
+        return arg ?? false
+      }),
+    ...common,
+  })
+)
+
+export type Pack = z.output<typeof pack>
+
+const run = o.flags(
+  z.tuple([z.literal('run')]),
+  z.strictObject({
+    input: o.inputFile(),
+    ...common,
+  })
+)
+
+export type Run = z.output<typeof run>
+
+export const schema = z.union([help, compileSelf, check, unpack, pack, run])
 
 export type Schema = z.output<typeof schema>
