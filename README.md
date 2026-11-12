@@ -1,0 +1,87 @@
+# JavaTales
+
+Bounce Tales code helpers
+
+Goal:
+
+- Explore code and resources
+- Make mods and texture packs
+- Make ports to different platforms
+- Explore bugs and easter eggs
+- Make tools for this game
+- Provide tools for building Bounce Tales to ancient platforms
+
+Project is Unix-like OS first, but if you use Bash (or even Git Bash) you probably fine ([Tech stack and building](#tech-stack-and-building))
+
+## CLI help
+
+### Usage
+
+java-tales COMMAND [ARGS...]
+
+### Examples
+
+#### Unpack - unpack Bounce Tales jar into readable sources
+
+java-tales --input=./bounce-tales.jar --output=./bounce-tales
+
+Or with force flag if you want to override output directory
+
+java-tales --input=./bounce-tales.jar --output=./bounce-tales --force
+
+#### Check - check if setup for JavaTales correct
+
+java-tales check
+
+#### compile-self - build CLI into executable
+
+All flags are optional
+
+java-tales compile-self --input=./cli/cli.ts --output=./java-tales --target=darwin-x64
+
+#### Help - get this help
+
+java-tales help
+
+java-tales --help
+
+## Tech stack and building
+
+- Bun and TypeScript - CLI
+- Docker / Docker Compose - dependencies (I don't wanna million i386 packages, IDE I don't like or fighting with Java installations)
+- HelloOO7 [BounceTools](https://github.com/HelloOO7/BounceTales) and Java - anything else
+
+### Run CLI
+
+If Bun installed - https://bun.com/get
+
+```shell
+git clone --recursive https://github.com/polioan/JavaTales.git
+cd ./JavaTales/
+bun ./cli/cli.ts
+```
+
+### Build CLI
+
+If Bun installed - https://bun.com/get
+
+```shell
+git clone --recursive https://github.com/polioan/JavaTales.git
+cd ./JavaTales/
+bun build ./cli/cli.ts --compile --outfile ./java-tales
+```
+
+### Build CLI without installing Bun (kinda)
+
+https://bun.com/docs/compiler/executables
+
+```shell
+git clone --recursive https://github.com/polioan/JavaTales.git
+cd ./JavaTales/
+bash ./compile.sh
+```
+
+## References and research
+
+- https://github.com/HelloOO7/BounceTales
+- [Java](./Java.md)

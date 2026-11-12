@@ -66,5 +66,10 @@
 
     "incremental": false
   },
-  "exclude": ["**/node_modules", "**/node_internals", "**/dist"]
+  "exclude": [
+    "**/node_modules",
+    "**/node_internals",
+    "**/dist",
+    "**/BounceTales"
+  ]
 }
