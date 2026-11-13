@@ -14,10 +14,15 @@ services:
     working_dir: '/tmp'
     tmpfs:
       - '/tmp'
+      - '/var/log/nginx:mode=1777'
     ports:
       - '8080:8080'
     volumes:
       - type: 'bind'
         source: '${RUN_INPUT:?set RUN_INPUT}'
         target: '/input/game.jar'
+        read_only: true
+      - type: 'bind'
+        source: '${RUN_PAGE:?set RUN_PAGE}'
+        target: '/opt/run/page.html'
         read_only: true

@@ -2,3 +2,8 @@
 !Dockerfile
 !entrypoint.sh
 !nginx.conf
+!pom.xml
+!runtime
+!runtime/**
+!prepare
+!prepare/**

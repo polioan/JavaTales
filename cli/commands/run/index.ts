@@ -3,17 +3,74 @@ import { $ } from 'bun'
 import process from 'node:process'
 import path from 'node:path'
 import { die } from '../../utils'
+import { rollup } from 'rollup'
+import { getCode, onwarn, plugins } from '../../shared/rollup'
+import os from 'node:os'
+import fsp from 'node:fs/promises'
+
+async function bundleTemplate({
+  root,
+  tsconfig,
+}: {
+  root: string
+  tsconfig: string
+}) {
+  const web = path.join(root, 'web')
+
+  const instance = await rollup({
+    cache: false,
+    input: path.join(web, './boot.ts'),
+    plugins: [
+      plugins.typescript({
+        tsconfig,
+        rootDir: path.dirname(tsconfig),
+      }),
+      plugins.json(),
+      plugins.replace({}),
+      plugins.stripNodePrefix(),
+      plugins.commonjs(),
+      plugins.resolve(),
+      plugins.minify(),
+      plugins.html(path.join(web, 'template.html')),
+    ],
+    onwarn,
+  })
+
+  const generated = await instance.generate({
+    format: 'iife',
+    sourcemap: false,
+    inlineDynamicImports: true,
+  })
+
+  await instance.close()
+
+  return getCode(generated)
+}
 
 export async function run(options: Run) {
   const root = path.join(options.sources, 'cli', 'commands', 'run')
   const composeFile = path.join(root, 'compose.yml')
   const project = `javatales-run-${process.pid}`
 
+  const tsconfig = path.join(options.sources, './tsconfig.json')
+
+  const template = await bundleTemplate({
+    root,
+    tsconfig,
+  })
+
+  const page = path.join(os.tmpdir(), `${project}.html`)
+
+  await fsp.writeFile(page, template, {
+    encoding: 'utf8',
+  })
+
   const env = {
     ...process.env,
     RUN_UID: String(process.getuid?.() ?? 0),
     RUN_GID: String(process.getgid?.() ?? 0),
     RUN_INPUT: options.input,
+    RUN_PAGE: page,
     COMPOSE_ANSI: 'never',
   }
 

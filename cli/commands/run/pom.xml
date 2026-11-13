@@ -1,0 +1,29 @@
+<project>
+  <modelVersion>4.0.0</modelVersion>
+  <groupId>javatales</groupId>
+  <artifactId>run-tools</artifactId>
+  <version>1</version>
+  <dependencies>
+    <dependency>
+      <groupId>org.teavm</groupId>
+      <artifactId>cli</artifactId>
+      <version>0.16.0</version>
+      <classifier>all</classifier>
+    </dependency>
+    <dependency>
+      <groupId>org.teavm</groupId>
+      <artifactId>teavm-jso</artifactId>
+      <version>0.16.0</version>
+    </dependency>
+    <dependency>
+      <groupId>org.teavm</groupId>
+      <artifactId>teavm-jso-apis</artifactId>
+      <version>0.16.0</version>
+    </dependency>
+    <dependency>
+      <groupId>org.ow2.asm</groupId>
+      <artifactId>asm</artifactId>
+      <version>9.7.1</version>
+    </dependency>
+  </dependencies>
+</project>

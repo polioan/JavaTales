@@ -111,3 +111,4 @@ bash ./compile.sh
 - https://github.com/polioan/BounceTalesViewer - Bounce Tales levels WEB viewer using this project
 - https://github.com/phd051199/phoneME-iOS
 - https://github.com/Rosabis/J2meJS
+- [Emulator](./cli/commands/run/README.md)
