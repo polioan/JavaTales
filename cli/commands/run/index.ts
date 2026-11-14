@@ -7,6 +7,8 @@ import { rollup } from 'rollup'
 import { getCode, onwarn, plugins } from '../../shared/rollup'
 import os from 'node:os'
 import fsp from 'node:fs/promises'
+// @ts-expect-error
+import workletRaw from '../../../node_modules/spessasynth_lib/dist/spessasynth_processor.min.js' with { type: 'text' }
 
 async function bundleTemplate({
   root,
@@ -17,16 +19,7 @@ async function bundleTemplate({
 }) {
   const web = path.join(root, 'web')
 
-  const workletPath = path.join(
-    path.dirname(tsconfig),
-    'node_modules/spessasynth_lib/dist/spessasynth_processor.min.js'
-  )
-
-  const worklet = (
-    await fsp.readFile(workletPath, {
-      encoding: 'utf8',
-    })
-  ).replace(/\n\/\/# sourceMappingURL=.*$/, '')
+  const worklet = workletRaw.replace(/\n\/\/# sourceMappingURL=.*$/, '')
 
   const workletLiteral = JSON.stringify(worklet).replace(
     /<\/(script)/gi,
