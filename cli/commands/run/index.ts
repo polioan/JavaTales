@@ -2,7 +2,7 @@ import type { Run } from '../../schema'
 import { $ } from 'bun'
 import process from 'node:process'
 import path from 'node:path'
-import { die } from '../../utils'
+import { die, staticAssert, type IsNever } from '../../utils'
 import { rollup } from 'rollup'
 import { getCode, onwarn, plugins } from '../../shared/rollup'
 import os from 'node:os'
@@ -106,4 +106,6 @@ export async function run(options: Run) {
     await tales(options)
     return
   }
+
+  staticAssert<IsNever<typeof options.provider>>()
 }

@@ -245,3 +245,21 @@ export function assert<T>(value: T, message?: string): NonNullable<T> {
 
   return value
 }
+
+type IsBooleanUnion<T extends boolean> = boolean extends T
+  ? T extends boolean
+    ? true
+    : false
+  : false
+
+export function staticAssert<T extends boolean>(
+  ...error: IsBooleanUnion<T> extends true
+    ? [never]
+    : T extends true
+      ? []
+      : [never]
+) {
+  void error
+}
+
+export type IsNever<T> = [T] extends [never] ? true : false

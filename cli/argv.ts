@@ -2,7 +2,15 @@ import process from 'node:process'
 import path from 'node:path'
 import { z } from 'zod'
 import { ArgvError } from './argv-error'
-import { exists, isDirectory, isFile, stripPrefix, untildify } from './utils'
+import {
+  exists,
+  isDirectory,
+  isFile,
+  staticAssert,
+  stripPrefix,
+  untildify,
+  type IsNever,
+} from './utils'
 
 export type ArgvOptions<T extends z.ZodType> = {
   schema: T
@@ -114,7 +122,8 @@ export class Argv<T extends z.ZodType> {
 }
 
 function formatType(payload: unknown) {
-  switch (typeof payload) {
+  const type = typeof payload
+  switch (type) {
     case 'undefined': {
       return 'nothing'
     }
@@ -146,6 +155,7 @@ function formatType(payload: unknown) {
       return 'object'
     }
     default: {
+      staticAssert<IsNever<typeof type>>()
       return 'never'
     }
   }

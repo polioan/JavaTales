@@ -11,7 +11,7 @@ import { pack } from './commands/pack'
 import { run } from './commands/run'
 import { unpack } from './commands/unpack'
 import { schema } from './schema'
-import { runMain } from './utils'
+import { runMain, staticAssert, type IsNever } from './utils'
 
 async function main() {
   const argv = new Argv({
@@ -76,6 +76,8 @@ async function main() {
     await midlet(parsed.data)
     return
   }
+
+  staticAssert<IsNever<typeof action>>()
 }
 
 runMain(main)
