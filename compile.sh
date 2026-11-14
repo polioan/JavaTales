@@ -24,15 +24,9 @@ output="./java-tales"
 
 rm -f "$output"
 
-docker run --rm \
-  --user "$(id -u):$(id -g)" \
-  --env HOME=/tmp \
-  --volume "$PWD:/app" \
-  --workdir /app \
-  --entrypoint bun \
-  oven/bun:1.4.4 \
-  ./cli/cli.ts compile-self \
-    --input=./cli/cli.ts \
-    --output="$output" \
-    --target="$target" \
-    --force
+docker build \
+  --build-arg "TARGET=${target}" \
+  --build-arg "OWNER_UID=$(id -u)" \
+  --build-arg "OWNER_GID=$(id -g)" \
+  --output "type=local,dest=." \
+  .
