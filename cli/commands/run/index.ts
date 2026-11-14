@@ -47,8 +47,15 @@ async function bundleTemplate({
   return getCode(generated)
 }
 
-export async function run(options: Run) {
-  const root = path.join(options.sources, 'cli', 'commands', 'run')
+async function tales(options: Run) {
+  const root = path.join(
+    options.sources,
+    'cli',
+    'commands',
+    'run',
+    'providers',
+    'tales'
+  )
   const composeFile = path.join(root, 'compose.yml')
   const project = `javatales-run-${process.pid}`
 
@@ -91,5 +98,12 @@ export async function run(options: Run) {
 
   if (result.exitCode !== 0 && result.exitCode !== 130) {
     die()
+  }
+}
+
+export async function run(options: Run) {
+  if (options.provider === 'tales') {
+    await tales(options)
+    return
   }
 }

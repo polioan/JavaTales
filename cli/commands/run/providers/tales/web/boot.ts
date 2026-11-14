@@ -1,4 +1,4 @@
-import { qs } from '../../../utils'
+import { qs } from '../../../../../utils'
 import { CurrentBridge, type ReadableBytes } from './bridge'
 
 type Tempo = {

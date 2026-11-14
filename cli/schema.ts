@@ -153,6 +153,13 @@ const run = o.flags(
   z.tuple([z.literal('run')]),
   z.strictObject({
     input: o.inputFile(),
+    provider: z
+      .enum(['tales'])
+      .nullable()
+      .optional()
+      .transform(arg => {
+        return arg ?? 'tales'
+      }),
     ...common,
   })
 )
