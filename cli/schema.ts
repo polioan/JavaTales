@@ -157,7 +157,7 @@ const run = o.flags(
   z.strictObject({
     input: o.inputFile(),
     provider: z
-      .enum(['tales', 'freej2me'])
+      .enum(['tales', 'freej2me', 'wtk'])
       .nullable()
       .optional()
       .transform(arg => {

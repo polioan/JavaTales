@@ -1,0 +1,24 @@
+services:
+  run:
+    build:
+      context: '.'
+      dockerfile: 'Dockerfile'
+    image: 'javatales-run-wtk:local'
+    pull_policy: 'build'
+    restart: 'no'
+    stdin_open: false
+    tty: false
+    read_only: true
+    init: true
+    shm_size: '1gb'
+    user: '${RUN_UID:?set RUN_UID}:${RUN_GID:?set RUN_GID}'
+    working_dir: '/tmp'
+    tmpfs:
+      - '/tmp'
+    ports:
+      - '8080:8080'
+    volumes:
+      - type: 'bind'
+        source: '${RUN_INPUT:?set RUN_INPUT}'
+        target: '/input/game.jar'
+        read_only: true
