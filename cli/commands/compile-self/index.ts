@@ -91,7 +91,7 @@ function linuxIsMusl() {
 }
 
 function getRuntime(options: CompileSelf) {
-  if (!options.target || options.target === 'auto') {
+  if (options.target === 'auto') {
     const { platform, arch } = detectRuntime()
 
     if (!platform || !arch) {

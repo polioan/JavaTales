@@ -61,7 +61,10 @@ const compileSelf = o.flags(
         'auto',
       ])
       .nullable()
-      .optional(),
+      .optional()
+      .transform(arg => {
+        return arg ?? 'auto'
+      }),
     input: o
       .inputFile()
       .nullable()
@@ -154,7 +157,7 @@ const run = o.flags(
   z.strictObject({
     input: o.inputFile(),
     provider: z
-      .enum(['tales'])
+      .enum(['tales', 'freej2me'])
       .nullable()
       .optional()
       .transform(arg => {

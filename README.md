@@ -45,6 +45,10 @@ java-tales midlet --input=./hello-world-midlet/src/com/example/HelloMIDlet.java 
 
 java-tales run --input=./bounce-tales.jar
 
+Or with other provider (emulator)
+
+java-tales run --input=./bounce-tales.jar --provider=freej2me
+
 #### level-json - naive level to JSON parser
 
 java-tales level-json --input=./bounce-tales/Levels/level_campaign01.rlef --output=./level.json
