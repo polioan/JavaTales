@@ -41,7 +41,7 @@ public class Graphics implements DirectGraphics {
 
 	public void setColor(int rgb) {
 		color = rgb & 0xFFFFFF;
-		context.setFillStyle(css(color, 255));
+		css(context, color, true);
 	}
 
 	public void setFont(Font font) {
@@ -67,7 +67,7 @@ public class Graphics implements DirectGraphics {
 		context.beginPath();
 		context.rect(x, y, width, height);
 		context.clip();
-		context.setFillStyle(css(color, 255));
+		css(context, color, true);
 		javatales.rt.Bridge.crisp(context);
 	}
 
@@ -97,7 +97,7 @@ public class Graphics implements DirectGraphics {
 		if (width < 0 || height < 0) {
 			return;
 		}
-		context.setStrokeStyle(css(color, 255));
+		css(context, color, false);
 		context.setLineWidth(1);
 		context.strokeRect(x, y, width, height);
 	}
@@ -106,7 +106,7 @@ public class Graphics implements DirectGraphics {
 		if (width <= 0 || height <= 0 || arcAngle == 0) {
 			return;
 		}
-		paintArc(context, x, y, width, height, startAngle, arcAngle, color, clipX, clipY, clipWidth, clipHeight);
+		paintArc(context, x, y, width, height, startAngle, arcAngle);
 	}
 
 	public void fillTriangle(int x1, int y1, int x2, int y2, int x3, int y3) {
@@ -118,7 +118,7 @@ public class Graphics implements DirectGraphics {
 		context.lineTo(cover(x3, cx), cover(y3, cy));
 		context.closePath();
 		context.fill();
-		context.setStrokeStyle(css(color, 255));
+		css(context, color, false);
 		context.setLineWidth(1);
 		context.stroke();
 	}
@@ -134,13 +134,13 @@ public class Graphics implements DirectGraphics {
 		}
 		context.closePath();
 		context.setGlobalAlpha(((argbColor >>> 24) & 255) / 255.0);
-		context.setFillStyle(css(argbColor, 255));
+		css(context, argbColor, true);
 		context.fill();
-		context.setStrokeStyle(css(argbColor, 255));
+		css(context, argbColor, false);
 		context.setLineWidth(1);
 		context.stroke();
 		context.setGlobalAlpha(1);
-		context.setFillStyle(css(color, 255));
+		css(context, color, true);
 	}
 
 	public void drawString(String text, int x, int y, int anchor) {
@@ -260,9 +260,8 @@ public class Graphics implements DirectGraphics {
 		return value;
 	}
 
-	private static String css(int rgb, int alpha) {
-		return "rgba(" + ((rgb >> 16) & 255) + "," + ((rgb >> 8) & 255) + "," + (rgb & 255) + "," + (alpha / 255.0) + ")";
-	}
+	@JSBody(params = {"context", "rgb", "fill"}, script = "var style = 'rgb(' + ((rgb >> 16) & 255) + ',' + ((rgb >> 8) & 255) + ',' + (rgb & 255) + ')'; if (fill) context.fillStyle = style; else context.strokeStyle = style;")
+	private static native void css(CanvasRenderingContext2D context, int rgb, boolean fill);
 
 	@JSBody(params = {"context", "font", "text"}, script = "var previous = context.font; context.font = font; var width = context.measureText(text).width; context.font = previous; return width;")
 	private static native double measureText(CanvasRenderingContext2D context, String font, String text);
@@ -270,8 +269,27 @@ public class Graphics implements DirectGraphics {
 	@JSBody(params = {"context", "font", "text", "x", "y"}, script = "var previous = context.font; context.font = font; context.textAlign = 'left'; context.textBaseline = 'top'; context.fillText(text, x, y); context.font = previous;")
 	private static native void fillText(CanvasRenderingContext2D context, String font, String text, int x, int y);
 
-	@JSBody(params = {"context", "x", "y", "width", "height", "startAngle", "arcAngle", "color", "clipX", "clipY", "clipWidth", "clipHeight"}, script = "var cx = x + width / 2; var cy = y + height / 2; var rx = width / 2; var ry = height / 2; var sweep = arcAngle; while (sweep > 360) sweep -= 360; while (sweep < -360) sweep += 360; var full = sweep <= -360 || sweep >= 360; var left = Math.max(x, clipX); var top = Math.max(y, clipY); var right = Math.min(x + width, clipX + clipWidth); var bottom = Math.min(y + height, clipY + clipHeight); left = Math.max(0, left); top = Math.max(0, top); right = Math.min(context.canvas.width, right); bottom = Math.min(context.canvas.height, bottom); if (right <= left || bottom <= top) return; var bw = right - left; var bh = bottom - top; var image = context.getImageData(left, top, bw, bh); var data = image.data; var red = (color >> 16) & 255; var green = (color >> 8) & 255; var blue = color & 255; for (var py = top; py < bottom; py++) { for (var px = left; px < right; px++) { var dx = px + 0.5 - cx; var dy = py + 0.5 - cy; if ((dx * dx) / (rx * rx) + (dy * dy) / (ry * ry) > 1) continue; if (!full) { var angle = Math.atan2(-dy, dx) * 180 / Math.PI - startAngle; angle = angle % 360; if (angle < 0) angle += 360; if (sweep > 0) { if (angle > sweep) continue; } else if (angle - 360 < sweep) { continue; } } var index = ((py - top) * bw + (px - left)) * 4; data[index] = red; data[index + 1] = green; data[index + 2] = blue; data[index + 3] = 255; } } context.putImageData(image, left, top);")
-	private static native void paintArc(CanvasRenderingContext2D context, int x, int y, int width, int height, int startAngle, int arcAngle, int color, int clipX, int clipY, int clipWidth, int clipHeight);
+	@JSBody(params = {"context", "x", "y", "width", "height", "startAngle", "arcAngle"}, script = """
+		var sweep = arcAngle;
+		while (sweep > 360) sweep -= 360;
+		while (sweep < -360) sweep += 360;
+		var cx = x + width / 2;
+		var cy = y + height / 2;
+		var rx = width / 2;
+		var ry = height / 2;
+		context.beginPath();
+		if (sweep >= 360 || sweep <= -360) {
+			context.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2);
+		} else {
+			var start = -startAngle * Math.PI / 180;
+			var end = -(startAngle + sweep) * Math.PI / 180;
+			context.moveTo(cx, cy);
+			context.ellipse(cx, cy, rx, ry, 0, start, end, sweep > 0);
+			context.closePath();
+		}
+		context.fill();
+		""")
+	private static native void paintArc(CanvasRenderingContext2D context, int x, int y, int width, int height, int startAngle, int arcAngle);
 
 	@JSBody(params = {"context", "rgb", "offset", "scan", "x", "y", "width", "height", "processAlpha"}, script = "var temp = document.createElement('canvas'); temp.width = width; temp.height = height; var pixels = temp.getContext('2d').createImageData(width, height); var data = pixels.data; var out = 0; for (var row = 0; row < height; row++) { var cursor = offset + row * scan; for (var column = 0; column < width; column++) { var color = rgb[cursor++]; data[out++] = (color >> 16) & 255; data[out++] = (color >> 8) & 255; data[out++] = color & 255; data[out++] = processAlpha ? ((color >>> 24) & 255) : 255; } } temp.getContext('2d').putImageData(pixels, 0, 0); context.drawImage(temp, x, y);")
 	private static native void paintRGB(CanvasRenderingContext2D context, int[] rgb, int offset, int scan, int x, int y, int width, int height, boolean processAlpha);
