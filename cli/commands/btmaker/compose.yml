@@ -1,0 +1,25 @@
+services:
+  btmaker:
+    build:
+      context: '.'
+      dockerfile: 'Dockerfile'
+      additional_contexts:
+        editor: '../../../BTMaker'
+    image: 'javatales-btmaker:local'
+    pull_policy: 'build'
+    restart: 'no'
+    stdin_open: false
+    tty: false
+    read_only: true
+    init: true
+    shm_size: '1gb'
+    user: '${BTMAKER_UID:?set BTMAKER_UID}:${BTMAKER_GID:?set BTMAKER_GID}'
+    working_dir: '/tmp'
+    tmpfs:
+      - '/tmp:rw,exec,nosuid,nodev,mode=1777,size=1g'
+    ports:
+      - '8080:8080'
+    volumes:
+      - type: 'bind'
+        source: '${BTMAKER_WORK:?set BTMAKER_WORK}'
+        target: '/work'

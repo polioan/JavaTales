@@ -1,6 +1,7 @@
 #!/usr/bin/env bun
 
 import { Argv } from './argv'
+import { btmaker } from './commands/btmaker'
 import { check } from './commands/check'
 import { compileSelf } from './commands/compile-self'
 import { help } from './commands/help'
@@ -74,6 +75,11 @@ async function main() {
 
   if (action === 'midlet') {
     await midlet(parsed.data)
+    return
+  }
+
+  if (action === 'btmaker') {
+    await btmaker(parsed.data)
     return
   }
 

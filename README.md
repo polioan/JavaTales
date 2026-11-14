@@ -63,6 +63,10 @@ All flags are optional
 
 java-tales compile-self --input=./cli/cli.ts --output=./java-tales --target=darwin-x64
 
+#### btmaker - explore https://github.com/Vireth4114/BTMaker
+
+java-tales btmaker
+
 #### Help - get this help
 
 java-tales help

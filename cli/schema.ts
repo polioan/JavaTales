@@ -223,6 +223,15 @@ const midlet = o.flags(
 
 export type Midlet = z.output<typeof midlet>
 
+const btmaker = o.flags(
+  z.tuple([z.literal('btmaker')]),
+  z.strictObject({
+    ...common,
+  })
+)
+
+export type Btmaker = z.output<typeof btmaker>
+
 export const schema = z.union([
   help,
   compileSelf,
@@ -233,6 +242,7 @@ export const schema = z.union([
   levelJson,
   levelJsonToParallax,
   midlet,
+  btmaker,
 ])
 
 export type Schema = z.output<typeof schema>
