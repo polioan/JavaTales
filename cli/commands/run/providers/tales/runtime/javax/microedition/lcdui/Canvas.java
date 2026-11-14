@@ -37,6 +37,10 @@ public abstract class Canvas extends Displayable {
 	public void setFullScreenMode(boolean mode) {}
 
 	public int getGameAction(int keyCode) {
+		return map(keyCode);
+	}
+
+	static int map(int keyCode) {
 		switch (keyCode) {
 			case -1:
 			case KEY_NUM2:

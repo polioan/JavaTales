@@ -20,7 +20,9 @@ public abstract class MIDlet {
 
 	protected abstract void destroyApp(boolean unconditional);
 
-	public final void notifyDestroyed() {}
+	public final void notifyDestroyed() {
+		javatales.rt.Screen.dismiss();
+	}
 
 	public final void notifyPaused() {}
 

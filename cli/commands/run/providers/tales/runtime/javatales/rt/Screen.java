@@ -10,6 +10,7 @@ public final class Screen {
 	public static final int HEIGHT = 320;
 
 	private static Canvas current;
+	private static javax.microedition.lcdui.Displayable page;
 	private static HTMLCanvasElement buffer;
 	private static Graphics bufferGraphics;
 	private static CanvasRenderingContext2D visible;
@@ -30,11 +31,31 @@ public final class Screen {
 
 	public static void show(Canvas canvas) {
 		current = canvas;
+		page = null;
+	}
+
+	public static void showPage(javax.microedition.lcdui.Displayable displayable) {
+		current = null;
+		page = displayable;
+	}
+
+	public static void dismiss() {
+		current = null;
+		page = null;
+		javax.microedition.lcdui.Display.cleared();
+		if (bufferGraphics != null) {
+			bufferGraphics.setClip(0, 0, WIDTH, HEIGHT);
+			bufferGraphics.setColor(0x000000);
+			bufferGraphics.fillRect(0, 0, WIDTH, HEIGHT);
+			flush();
+		}
 	}
 
 	public static void key(int code, boolean down) {
 		if (current != null) {
 			current.dispatchKey(code, down);
+		} else if (page != null) {
+			javax.microedition.lcdui.Display.dispatchKey(code, down);
 		}
 	}
 
