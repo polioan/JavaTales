@@ -2,3 +2,6 @@
 	path = BounceTales
 	url = https://github.com/polioan/BounceTales.git
 	branch = teavm
+[submodule "BTMaker"]
+	path = BTMaker
+	url = https://github.com/Vireth4114/BTMaker
