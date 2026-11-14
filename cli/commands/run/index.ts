@@ -17,6 +17,22 @@ async function bundleTemplate({
 }) {
   const web = path.join(root, 'web')
 
+  const workletPath = path.join(
+    path.dirname(tsconfig),
+    'node_modules/spessasynth_lib/dist/spessasynth_processor.min.js'
+  )
+
+  const worklet = (
+    await fsp.readFile(workletPath, {
+      encoding: 'utf8',
+    })
+  ).replace(/\n\/\/# sourceMappingURL=.*$/, '')
+
+  const workletLiteral = JSON.stringify(worklet).replace(
+    /<\/(script)/gi,
+    '<\\/$1'
+  )
+
   const instance = await rollup({
     cache: false,
     input: path.join(web, './boot.ts'),
@@ -26,7 +42,9 @@ async function bundleTemplate({
         rootDir: path.dirname(tsconfig),
       }),
       plugins.json(),
-      plugins.replace({}),
+      plugins.replace({
+        __SPESSASYNTH_WORKLET__: workletLiteral,
+      }),
       plugins.stripNodePrefix(),
       plugins.commonjs(),
       plugins.resolve(),

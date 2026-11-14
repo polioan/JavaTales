@@ -1,39 +1,38 @@
+import { Sequencer, WorkletSynthesizer } from 'spessasynth_lib'
 import { qs } from '../../../../../utils'
 import { CurrentBridge, type ReadableBytes } from './bridge'
 
-type Tempo = {
-  tick: number
-  us: number
-}
-
-type MidiEvent = {
-  tick: number
-  status: number
-  a: number
-  b: number
-}
-
-type OpenNote = {
-  time: number
-  note: number
-  velocity: number
-  program: number
-  volume: number
-  channel: number
-}
-
-type MidiNote = OpenNote & {
-  duration: number
-}
-
-type Song = {
-  notes: MidiNote[]
-  seconds: number
-}
-
-type Audio = {
+type Engine = {
   context: AudioContext
+  master: GainNode
+}
+
+type Slot = {
+  generation: number
+  loops: number
+  level: number
+}
+
+type MidiVoice = {
+  synth: WorkletSynthesizer
+  seq: Sequencer
   gain: GainNode
+  owner: number | null
+  songKey: string | null
+  playing: boolean
+}
+
+type Wave = {
+  buffer: AudioBuffer
+  gain: GainNode
+  context: AudioContext
+  source: AudioBufferSourceNode | null
+  offset: number
+  startedAt: number
+  loopsLeft: number
+  infinite: boolean
+  key: string
+  pausing: boolean
 }
 
 const bridge = CurrentBridge.register()
@@ -161,33 +160,77 @@ function bindKeys() {
   })
 }
 
-let audio: Audio | null = null
-let midiGeneration = 0
-const midiNodes: AudioScheduledSourceNode[] = []
+const slots = new Map<number, Slot>()
+const voices: MidiVoice[] = []
+const waves = new Map<number, Wave>()
+let queue: Promise<void> = Promise.resolve()
+let enginePromise: Promise<Engine> | null = null
+let bankPromise: Promise<ArrayBuffer> | null = null
+let songListener = 0
 
-function audioContext(): Audio {
-  if (audio) {
-    return audio
+function slot(id: number) {
+  const current = slots.get(id)
+  if (current) {
+    return current
   }
-  const context = new AudioContext()
-  const gain = context.createGain()
-  gain.gain.value = 0.35
-  gain.connect(context.destination)
-  audio = {
-    context,
-    gain,
+  const created: Slot = {
+    generation: 0,
+    loops: 1,
+    level: 100,
   }
-  return audio
+  slots.set(id, created)
+  return created
 }
 
-function resumeAudio() {
-  if (audio?.context.state === 'suspended') {
-    void audio.context.resume()
+function clampLevel(level: number) {
+  if (level < 0) {
+    return 0
   }
+  if (level > 100) {
+    return 100
+  }
+  return level
 }
 
-window.addEventListener('pointerdown', resumeAudio)
-window.addEventListener('keydown', resumeAudio)
+function loopCount(loops: number) {
+  if (loops < 0) {
+    return Number.POSITIVE_INFINITY
+  }
+  return Math.max(0, loops - 1)
+}
+
+function songKey(bytes: Uint8Array) {
+  let hash = 0x811c9dc5
+  for (const byte of bytes) {
+    hash ^= byte
+    hash = Math.imul(hash, 0x01000193)
+  }
+  return `${hash >>> 0}:${bytes.length}`
+}
+
+function isMidi(bytes: Uint8Array) {
+  return (
+    bytes.length > 14 &&
+    bytes[0] === 0x4d &&
+    bytes[1] === 0x54 &&
+    bytes[2] === 0x68 &&
+    bytes[3] === 0x64
+  )
+}
+
+function isWave(bytes: Uint8Array) {
+  return (
+    bytes.length > 12 &&
+    bytes[0] === 0x52 &&
+    bytes[1] === 0x49 &&
+    bytes[2] === 0x46 &&
+    bytes[3] === 0x46 &&
+    bytes[8] === 0x57 &&
+    bytes[9] === 0x41 &&
+    bytes[10] === 0x56 &&
+    bytes[11] === 0x45
+  )
+}
 
 function midiArray(bytes: ReadableBytes) {
   const length = bytes.length ?? bytes.getLength?.() ?? 0
@@ -199,323 +242,448 @@ function midiArray(bytes: ReadableBytes) {
   return copy
 }
 
-function byteAt(bytes: Uint8Array, index: number) {
-  return bytes[index] ?? 0
+function enqueue<T>(job: () => Promise<T>) {
+  const run = queue.then(job, job)
+  queue = run.then(
+    () => void 0,
+    () => void 0
+  )
+  return run
 }
 
-function readVariable(
-  bytes: Uint8Array,
-  index: number
-): {
-  value: number
-  next: number
-} {
-  let value = 0
-  while (index < bytes.length) {
-    const piece = byteAt(bytes, index)
-    index += 1
-    value = (value << 7) | (piece & 127)
-    if ((piece & 128) === 0) {
-      return {
-        value,
-        next: index,
-      }
-    }
-  }
-  return {
-    value,
-    next: index,
-  }
-}
-
-function parseMidi(bytes: Uint8Array): Song {
-  let index = 14
-
-  const tracks = (byteAt(bytes, 10) << 8) | byteAt(bytes, 11)
-  let division = (byteAt(bytes, 12) << 8) | byteAt(bytes, 13)
-
-  if (division <= 0) {
-    division = 96
-  }
-
-  const events: MidiEvent[] = []
-  const tempos: Tempo[] = [
-    {
-      tick: 0,
-      us: 500000,
-    },
-  ]
-
-  for (let track = 0; track < tracks && index + 8 <= bytes.length; track += 1) {
-    const marker =
-      byteAt(bytes, index) === 0x4d &&
-      byteAt(bytes, index + 1) === 0x54 &&
-      byteAt(bytes, index + 2) === 0x72 &&
-      byteAt(bytes, index + 3) === 0x6b
-
-    if (!marker) {
-      break
-    }
-
-    const length =
-      (byteAt(bytes, index + 4) << 24) |
-      (byteAt(bytes, index + 5) << 16) |
-      (byteAt(bytes, index + 6) << 8) |
-      byteAt(bytes, index + 7)
-
-    index += 8
-    const end = index + length
-    let tick = 0
-    let status = 0
-
-    while (index < end) {
-      const delta = readVariable(bytes, index)
-      tick += delta.value
-      index = delta.next
-      if (byteAt(bytes, index) & 128) {
-        status = byteAt(bytes, index)
-        index += 1
-      }
-      if (status === 0xff) {
-        const kind = byteAt(bytes, index)
-        index += 1
-        const size = readVariable(bytes, index)
-        index = size.next
-        if (kind === 0x51 && size.value === 3) {
-          tempos.push({
-            tick,
-            us:
-              (byteAt(bytes, index) << 16) |
-              (byteAt(bytes, index + 1) << 8) |
-              byteAt(bytes, index + 2),
-          })
+function bankFile() {
+  if (!bankPromise) {
+    bankPromise = fetch('/soundbank.sf2')
+      .then(response => {
+        if (!response.ok) {
+          throw new Error('General MIDI soundbank failed to load')
         }
-        index += size.value
-      } else if (status === 0xf0 || status === 0xf7) {
-        const sysex = readVariable(bytes, index)
-        index = sysex.next + sysex.value
-      } else {
-        const needed =
-          (status & 0xf0) === 0xc0 || (status & 0xf0) === 0xd0 ? 1 : 2
+        return response.arrayBuffer()
+      })
+      .catch(error => {
+        bankPromise = null
+        throw error
+      })
+  }
+  return bankPromise
+}
 
-        events.push({
-          tick,
-          status,
-          a: byteAt(bytes, index),
-          b: needed === 2 ? byteAt(bytes, index + 1) : 0,
+function getSpessasynthWorklet() {
+  // @ts-expect-error
+  return __SPESSASYNTH_WORKLET__
+}
+
+function engine() {
+  if (!enginePromise) {
+    enginePromise = (async () => {
+      const context = new AudioContext()
+      const master = context.createGain()
+      master.gain.value = 0.9
+      master.connect(context.destination)
+      const url = URL.createObjectURL(
+        new Blob([getSpessasynthWorklet()], {
+          type: 'text/javascript',
         })
-        index += needed
+      )
+      try {
+        await context.audioWorklet.addModule(url)
+      } finally {
+        URL.revokeObjectURL(url)
       }
-    }
-  }
-
-  tempos.sort((left, right) => left.tick - right.tick)
-
-  const seconds = (tick: number) => {
-    let time = 0
-    let previous = 0
-    let microseconds = 500000
-
-    for (const tempo of tempos) {
-      if (tempo.tick > tick) {
-        break
+      return {
+        context,
+        master,
       }
-      time += ((tempo.tick - previous) * microseconds) / division / 1000000
-      previous = tempo.tick
-      microseconds = tempo.us
-    }
-    return time + ((tick - previous) * microseconds) / division / 1000000
-  }
-
-  const programs = Array.from(
-    {
-      length: 16,
-    },
-    () => 0
-  )
-  const volume = Array.from(
-    {
-      length: 16,
-    },
-    () => 100
-  )
-  const notes: MidiNote[] = []
-  const open: Record<string, OpenNote> = {}
-  let last = 0
-
-  events.sort((left, right) => {
-    if (left.tick !== right.tick) {
-      return left.tick - right.tick
-    }
-    const rank = (value: number) => {
-      const kind = value & 0xf0
-      return kind === 0xc0 || kind === 0xb0 ? 0 : 1
-    }
-    return rank(left.status) - rank(right.status)
-  })
-
-  for (const event of events) {
-    const channel = event.status & 15
-    const kind = event.status & 0xf0
-    const time = seconds(event.tick)
-    if (time > last) {
-      last = time
-    }
-    if (kind === 0xc0) {
-      programs[channel] = event.a
-    } else if (kind === 0xb0 && event.a === 7) {
-      volume[channel] = event.b
-    } else if (kind === 0x90 && event.b > 0) {
-      open[`${channel}:${event.a}`] = {
-        time,
-        note: event.a,
-        velocity: event.b,
-        program: programs[channel] ?? 0,
-        volume: volume[channel] ?? 100,
-        channel,
-      }
-    } else if (kind === 0x80 || (kind === 0x90 && event.b === 0)) {
-      const key = `${channel}:${event.a}`
-      const held = open[key]
-      if (held) {
-        notes.push({
-          ...held,
-          duration: Math.max(0.03, time - held.time),
-        })
-        delete open[key]
-      }
-    }
-  }
-
-  for (const held of Object.values(open)) {
-    notes.push({
-      ...held,
-      duration: 0.2,
+    })().catch(error => {
+      enginePromise = null
+      throw error
     })
   }
-
-  return {
-    notes,
-    seconds: Math.max(0.1, last),
-  }
+  return enginePromise
 }
 
-function waveFor(program: number): OscillatorType {
-  if (program >= 32 && program <= 39) {
-    return 'triangle'
-  }
-  if ((program >= 40 && program <= 55) || (program >= 80 && program <= 87)) {
-    return 'sawtooth'
-  }
-  if (program >= 64 && program <= 71) {
-    return 'square'
-  }
-  if (program >= 72 && program <= 79) {
-    return 'sine'
-  }
-  return 'triangle'
-}
-
-function scheduleSong(song: Song, when: number) {
-  const { context, gain } = audioContext()
-  for (const note of song.notes) {
-    const loud = (note.velocity / 127) * (note.volume / 127) * 0.2
-    const start = when + note.time
-    const stop = start + note.duration
-    if (note.channel === 9) {
-      const frames = Math.max(1, Math.floor(context.sampleRate * note.duration))
-      const buffer = context.createBuffer(1, frames, context.sampleRate)
-      const samples = buffer.getChannelData(0)
-      for (let frame = 0; frame < frames; frame += 1) {
-        samples[frame] = Math.random() * 2 - 1
+function resumeAudio() {
+  void engine()
+    .then(audio => {
+      if (audio.context.state === 'suspended') {
+        return audio.context.resume()
       }
-      const noise = context.createBufferSource()
-      const noiseGain = context.createGain()
-      noise.buffer = buffer
-      noiseGain.gain.setValueAtTime(loud, start)
-      noiseGain.gain.exponentialRampToValueAtTime(0.001, stop)
-      noise.connect(noiseGain)
-      noiseGain.connect(gain)
-      noise.start(start)
-      noise.stop(stop + 0.01)
-      midiNodes.push(noise)
-      continue
-    }
-    const voice = context.createOscillator()
-    const voiceGain = context.createGain()
-    voice.type = waveFor(note.program)
-    voice.frequency.setValueAtTime(440 * 2 ** ((note.note - 69) / 12), start)
-    voiceGain.gain.setValueAtTime(0.0001, start)
-    voiceGain.gain.exponentialRampToValueAtTime(
-      Math.max(0.001, loud),
-      start + Math.min(0.02, note.duration / 3)
-    )
-    voiceGain.gain.exponentialRampToValueAtTime(0.001, stop)
-    voice.connect(voiceGain)
-    voiceGain.connect(gain)
-    voice.start(start)
-    voice.stop(stop + 0.02)
-    midiNodes.push(voice)
-  }
+      return void 0
+    })
+    .catch(() => void 0)
 }
 
-bridge.stopMidi = () => {
-  midiGeneration += 1
-  for (const node of midiNodes) {
-    try {
-      node.stop()
-    } catch {}
-  }
-  midiNodes.length = 0
-}
+window.addEventListener('pointerdown', resumeAudio)
+window.addEventListener('keydown', resumeAudio)
 
-bridge.midiVolume = level => {
-  const { gain } = audioContext()
-  gain.gain.value = (Math.max(0, Math.min(100, level)) / 100) * 0.4
-}
+void bankFile().catch(error => {
+  console.warn(error)
+})
 
-bridge.playMidi = (bytes, loops, level) => {
-  const song = parseMidi(midiArray(bytes))
-  bridge.midiDebug = {
-    notes: song.notes.length,
-    seconds: song.seconds,
-    loops,
-  }
-  bridge.stopMidi()
-  const generation = midiGeneration
-  bridge.midiVolume(level)
-  let remaining = loops < 0 ? -1 : Math.max(0, loops - 1)
+void engine().catch(error => {
+  console.warn(error)
+})
 
-  const playFrom = (when: number) => {
-    if (generation !== midiGeneration) {
-      return
-    }
-    scheduleSong(song, when)
-    if (remaining === 0) {
-      return
-    }
-    const { context } = audioContext()
-    const end = when + song.seconds
-    const marker = context.createOscillator()
-
-    marker.onended = () => {
-      if (generation !== midiGeneration) {
+function songReady(seq: Sequencer) {
+  songListener += 1
+  const id = `song-${songListener}`
+  return new Promise<void>((resolve, reject) => {
+    let settled = false
+    const finish = (error?: Error) => {
+      if (settled) {
         return
       }
-      if (remaining > 0) {
-        remaining -= 1
+      settled = true
+      seq.eventHandler.removeEvent('songChange', id)
+      seq.eventHandler.removeEvent('midiError', id)
+      if (error) {
+        reject(error)
+        return
       }
-      playFrom(audioContext().context.currentTime + 0.04)
+      resolve()
     }
+    seq.eventHandler.addEvent('songChange', id, () => {
+      finish()
+    })
+    seq.eventHandler.addEvent('midiError', id, error => {
+      finish(error instanceof Error ? error : new Error('MIDI failed to load'))
+    })
+  })
+}
 
-    marker.start(end)
-    marker.stop(end + 0.02)
-    midiNodes.push(marker)
+async function createVoice(audio: Engine) {
+  const bank = await bankFile()
+  const synth = new WorkletSynthesizer(audio.context)
+  const gain = audio.context.createGain()
+  gain.gain.value = 1
+  synth.connect(gain)
+  gain.connect(audio.master)
+  try {
+    await synth.soundBankManager.addSoundBank(bank.slice(0), 'gm')
+    await synth.isReady
+  } catch (error) {
+    synth.destroy()
+    gain.disconnect()
+    throw error
   }
+  const seq = new Sequencer(synth, {
+    skipToFirstNoteOn: false,
+  })
+  const voice: MidiVoice = {
+    synth,
+    seq,
+    gain,
+    owner: null,
+    songKey: null,
+    playing: false,
+  }
+  voices.push(voice)
+  return voice
+}
 
-  const { context } = audioContext()
-  playFrom(context.currentTime + 0.05)
-  void context.resume()
+function ended(voice: MidiVoice) {
+  if (voice.seq.isFinished) {
+    return true
+  }
+  const duration = voice.seq.duration
+  return duration > 0 && voice.seq.currentTime >= duration - 0.05
+}
+
+function releaseMidi(id: number) {
+  const voice = voices.find(item => {
+    return item.owner === id
+  })
+  if (!voice) {
+    return
+  }
+  voice.seq.pause()
+  voice.playing = false
+  voice.owner = null
+  voice.songKey = null
+}
+
+async function acquire(id: number, live: () => boolean, level: number) {
+  return enqueue(async () => {
+    if (!live()) {
+      return null
+    }
+    const owned = voices.find(item => {
+      return item.owner === id
+    })
+    if (owned) {
+      owned.gain.gain.value = level / 100
+      return owned
+    }
+    const audio = await engine()
+    if (!live()) {
+      return null
+    }
+    let voice = voices.find(item => {
+      return item.owner == null
+    })
+    if (!voice) {
+      voice = await createVoice(audio)
+      if (!live()) {
+        return null
+      }
+    }
+    voice.owner = id
+    voice.gain.gain.value = level / 100
+    return voice
+  })
+}
+
+async function playGeneralMidi(
+  id: number,
+  bytes: Uint8Array,
+  live: () => boolean
+) {
+  const current = slot(id)
+  const audio = await engine()
+  if (!live()) {
+    return
+  }
+  await audio.context.resume()
+  releaseWave(id, true)
+  const voice = await acquire(id, live, current.level)
+  if (!voice || !live()) {
+    return
+  }
+  const key = songKey(bytes)
+  let restart = voice.songKey !== key
+  if (restart) {
+    const ready = songReady(voice.seq)
+    voice.seq.loadNewSongList([
+      {
+        binary: bytes.slice().buffer,
+      },
+    ])
+    await ready
+    if (!live()) {
+      return
+    }
+    voice.songKey = key
+    voice.seq.currentTime = 0
+  } else if (ended(voice)) {
+    voice.seq.currentTime = 0
+    restart = true
+  } else if (voice.playing && !voice.seq.paused) {
+    return
+  }
+  if (!live()) {
+    return
+  }
+  if (restart) {
+    voice.seq.loopCount = loopCount(current.loops)
+  }
+  voice.gain.gain.value = current.level / 100
+  voice.seq.play()
+  voice.playing = true
+}
+
+function pauseWave(wave: Wave) {
+  const source = wave.source
+  if (!source) {
+    return
+  }
+  const elapsed = wave.context.currentTime - wave.startedAt
+  wave.offset = Math.min(
+    wave.buffer.duration,
+    wave.offset + Math.max(0, elapsed)
+  )
+  wave.pausing = true
+  wave.source = null
+  source.stop()
+}
+
+function releaseWave(id: number, drop: boolean) {
+  const wave = waves.get(id)
+  if (!wave) {
+    return
+  }
+  pauseWave(wave)
+  if (!drop) {
+    return
+  }
+  wave.gain.disconnect()
+  waves.delete(id)
+}
+
+function startWave(wave: Wave, live: () => boolean) {
+  const source = wave.context.createBufferSource()
+  source.buffer = wave.buffer
+  source.connect(wave.gain)
+  wave.source = source
+  wave.pausing = false
+  wave.startedAt = wave.context.currentTime
+  source.onended = () => {
+    if (wave.pausing || wave.source !== source) {
+      return
+    }
+    wave.source = null
+    wave.offset = 0
+    if (!live() || wave.infinite) {
+      return
+    }
+    wave.loopsLeft -= 1
+    if (wave.loopsLeft > 0) {
+      startWave(wave, live)
+    }
+  }
+  if (wave.infinite) {
+    source.loop = true
+  }
+  const offset = Math.min(wave.offset, Math.max(0, wave.buffer.duration - 0.01))
+  source.start(0, offset)
+}
+
+async function playWave(id: number, bytes: Uint8Array, live: () => boolean) {
+  const current = slot(id)
+  const audio = await engine()
+  if (!live()) {
+    return
+  }
+  await audio.context.resume()
+  if (!live()) {
+    return
+  }
+  releaseMidi(id)
+  const key = songKey(bytes)
+  let wave = waves.get(id)
+  if (!wave || wave.key !== key) {
+    const buffer = await audio.context.decodeAudioData(bytes.slice().buffer)
+    if (!live()) {
+      return
+    }
+    if (wave) {
+      pauseWave(wave)
+      wave.gain.disconnect()
+    }
+    const gain = audio.context.createGain()
+    gain.connect(audio.master)
+    wave = {
+      buffer,
+      gain,
+      context: audio.context,
+      source: null,
+      offset: 0,
+      startedAt: 0,
+      loopsLeft: 0,
+      infinite: false,
+      key,
+      pausing: false,
+    }
+    waves.set(id, wave)
+  } else if (wave.source) {
+    return
+  } else if (wave.offset >= wave.buffer.duration - 0.02) {
+    wave.offset = 0
+  }
+  wave.gain.gain.value = current.level / 100
+  wave.infinite = current.loops < 0
+  wave.loopsLeft = current.loops < 0 ? 0 : current.loops
+  startWave(wave, live)
+}
+
+async function dispatch(id: number, bytes: Uint8Array, generation: number) {
+  const live = () => {
+    const current = slots.get(id)
+    return current != null && current.generation === generation
+  }
+  try {
+    if (isMidi(bytes)) {
+      await playGeneralMidi(id, bytes, live)
+      return
+    }
+    if (isWave(bytes)) {
+      await playWave(id, bytes, live)
+      return
+    }
+    try {
+      await playWave(id, bytes, live)
+    } catch {
+      if (!live()) {
+        return
+      }
+      await playGeneralMidi(id, bytes, live)
+    }
+  } catch (error) {
+    if (live()) {
+      console.warn(error)
+    }
+  }
+}
+
+bridge.stopMidi = id => {
+  const current = slots.get(id)
+  if (current) {
+    current.generation += 1
+  }
+  const voice = voices.find(item => {
+    return item.owner === id
+  })
+  if (voice) {
+    voice.seq.pause()
+    voice.playing = false
+  }
+  releaseWave(id, false)
+}
+
+bridge.closeMidi = id => {
+  const current = slots.get(id)
+  if (current) {
+    current.generation += 1
+  }
+  releaseMidi(id)
+  releaseWave(id, true)
+  slots.delete(id)
+}
+
+bridge.midiVolume = (id, level) => {
+  const current = slot(id)
+  current.level = clampLevel(level)
+  const voice = voices.find(item => {
+    return item.owner === id
+  })
+  if (voice) {
+    voice.gain.gain.value = current.level / 100
+  }
+  const wave = waves.get(id)
+  if (wave) {
+    wave.gain.gain.value = current.level / 100
+  }
+}
+
+bridge.midiLoop = (id, loops) => {
+  const current = slot(id)
+  current.loops = loops
+  const voice = voices.find(item => {
+    return item.owner === id
+  })
+  if (voice) {
+    voice.seq.loopCount = loopCount(loops)
+  }
+  const wave = waves.get(id)
+  if (!wave) {
+    return
+  }
+  wave.infinite = loops < 0
+  if (wave.source) {
+    wave.source.loop = loops < 0
+  }
+  if (loops < 0) {
+    wave.loopsLeft = 0
+    return
+  }
+  wave.loopsLeft = loops
+}
+
+bridge.playMidi = (id, bytes, loops, level) => {
+  const current = slot(id)
+  current.generation += 1
+  current.loops = loops
+  current.level = clampLevel(level)
+  void dispatch(id, midiArray(bytes), current.generation)
 }
 
 async function decodeImage(path: string, bytes: Uint8Array) {

@@ -10,11 +10,14 @@ public class Player {
 	public static final int PREFETCHED = 300;
 	public static final int STARTED = 400;
 
+	private static int nextId = 1;
+
 	private int state = UNREALIZED;
+	private final int id;
 	private final byte[] data;
 	private int loops = 1;
 	private int level = 100;
-  
+
 	private final VolumeControl volume = new VolumeControl() {
 		public int setLevel(int value) {
 			if (value < 0) {
@@ -23,13 +26,14 @@ public class Player {
 				value = 100;
 			}
 			level = value;
-			javatales.rt.Bridge.midiVolume(value);
+			javatales.rt.Bridge.midiVolume(id, value);
 			return value;
 		}
 	};
 
 	Player(byte[] data) {
 		this.data = data;
+		this.id = nextId++;
 	}
 
 	public void prefetch() {
@@ -41,25 +45,33 @@ public class Player {
 	}
 
 	public void start() {
+		if (state == CLOSED || state == STARTED) {
+			return;
+		}
 		state = STARTED;
-		javatales.rt.Bridge.playMidi(data, loops, level);
+		javatales.rt.Bridge.playMidi(id, data, loops, level);
 	}
 
 	public void stop() {
-		javatales.rt.Bridge.stopMidi();
+		if (state == STARTED) {
+			javatales.rt.Bridge.stopMidi(id);
+		}
 		if (state != CLOSED) {
 			state = PREFETCHED;
 		}
 	}
 
 	public void deallocate() {
+		if (state == STARTED) {
+			javatales.rt.Bridge.stopMidi(id);
+		}
 		if (state != CLOSED) {
 			state = REALIZED;
 		}
 	}
 
 	public void close() {
-		javatales.rt.Bridge.stopMidi();
+		javatales.rt.Bridge.closeMidi(id);
 		state = CLOSED;
 	}
 
@@ -69,6 +81,7 @@ public class Player {
 
 	public void setLoopCount(int count) {
 		loops = count;
+		javatales.rt.Bridge.midiLoop(id, count);
 	}
 
 	public Control getControl(String type) {

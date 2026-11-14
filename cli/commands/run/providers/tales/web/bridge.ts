@@ -12,14 +12,16 @@ export type Bridge = {
   jtHash: (bytes: Uint8Array) => string
   resources: Record<string, string>
   key: (code: number, down: boolean) => void
-  stopMidi: () => void
-  midiVolume: (level: number) => void
-  playMidi: (bytes: ReadableBytes, loops: number, level: number) => void
-  midiDebug: {
-    notes: number
-    seconds: number
-    loops: number
-  }
+  stopMidi: (id: number) => void
+  closeMidi: (id: number) => void
+  midiVolume: (id: number, level: number) => void
+  midiLoop: (id: number, loops: number) => void
+  playMidi: (
+    id: number,
+    bytes: ReadableBytes,
+    loops: number,
+    level: number
+  ) => void
   images: Record<string, HTMLCanvasElement>
   raw: Record<string, Uint8Array>
   imagesByPath: Record<string, HTMLCanvasElement>
@@ -170,6 +172,14 @@ export class CurrentBridge implements Bridge {
     return this.get('stopMidi') ?? (() => {})
   }
 
+  public set closeMidi(toSet: Bridge['closeMidi']) {
+    this.set('closeMidi', toSet)
+  }
+
+  public get closeMidi() {
+    return this.get('closeMidi') ?? (() => {})
+  }
+
   public set midiVolume(toSet: Bridge['midiVolume']) {
     this.set('midiVolume', toSet)
   }
@@ -178,20 +188,20 @@ export class CurrentBridge implements Bridge {
     return this.get('midiVolume') ?? (() => {})
   }
 
+  public set midiLoop(toSet: Bridge['midiLoop']) {
+    this.set('midiLoop', toSet)
+  }
+
+  public get midiLoop() {
+    return this.get('midiLoop') ?? (() => {})
+  }
+
   public set playMidi(toSet: Bridge['playMidi']) {
     this.set('playMidi', toSet)
   }
 
   public get playMidi() {
     return this.get('playMidi') ?? (() => {})
-  }
-
-  public set midiDebug(toSet: Bridge['midiDebug']) {
-    this.set('midiDebug', toSet)
-  }
-
-  public get midiDebug() {
-    return this.get('midiDebug') ?? {}
   }
 
   public set images(toSet: Bridge['images']) {

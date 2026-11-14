@@ -52,19 +52,27 @@ public final class Bridge {
 		return imageForBytes(Int8Array.fromJavaArray(data));
 	}
 
-	public static void playMidi(byte[] data, int loops, int volume) {
+	public static void playMidi(int id, byte[] data, int loops, int volume) {
 		if (data == null || data.length == 0) {
 			return;
 		}
-		startMidi(Int8Array.fromJavaArray(data), loops, volume);
+		startMidi(id, Int8Array.fromJavaArray(data), loops, volume);
 	}
 
-	public static void stopMidi() {
-		endMidi();
+	public static void stopMidi(int id) {
+		endMidi(id);
 	}
 
-	public static void midiVolume(int volume) {
-		setMidiVolume(volume);
+	public static void closeMidi(int id) {
+		releaseMidi(id);
+	}
+
+	public static void midiVolume(int id, int volume) {
+		setMidiVolume(id, volume);
+	}
+
+	public static void midiLoop(int id, int count) {
+		setMidiLoop(id, count);
 	}
 
 	public static void installKeys() {
@@ -107,14 +115,20 @@ public final class Bridge {
 		void onKey(int code, boolean down);
 	}
 
-	@JSBody(params = {"data", "loops", "volume"}, script = "window.bridge.playMidi(data, loops, volume);")
-	private static native void startMidi(Int8Array data, int loops, int volume);
+	@JSBody(params = {"id", "data", "loops", "volume"}, script = "window.bridge.playMidi(id, data, loops, volume);")
+	private static native void startMidi(int id, Int8Array data, int loops, int volume);
 
-	@JSBody(script = "window.bridge.stopMidi();")
-	private static native void endMidi();
+	@JSBody(params = "id", script = "window.bridge.stopMidi(id);")
+	private static native void endMidi(int id);
 
-	@JSBody(params = "volume", script = "window.bridge.midiVolume(volume);")
-	private static native void setMidiVolume(int volume);
+	@JSBody(params = "id", script = "window.bridge.closeMidi(id);")
+	private static native void releaseMidi(int id);
+
+	@JSBody(params = {"id", "volume"}, script = "window.bridge.midiVolume(id, volume);")
+	private static native void setMidiVolume(int id, int volume);
+
+	@JSBody(params = {"id", "count"}, script = "window.bridge.midiLoop(id, count);")
+	private static native void setMidiLoop(int id, int count);
 
 	@JSBody(params = "handler", script = "window.bridge.key = handler;")
 	private static native void bindKeys(KeyHandler handler);

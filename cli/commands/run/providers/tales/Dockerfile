@@ -3,8 +3,15 @@
 FROM eclipse-temurin:17-jdk-jammy
 
 RUN apt-get update \
-  && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends nginx maven \
+  && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends curl maven nginx \
   && rm -rf /var/lib/apt/lists/*
+
+ARG GENERALUSER_URL=https://github.com/mrbumpy409/GeneralUser-GS/raw/97049183643d5fc5a9322a69c5b09efb667c6c3a/GeneralUser-GS.sf2
+ARG GENERALUSER_SHA256=9575028c7a1f589f5770fccc8cff2734566af40cd26ed836944e9a5152688cfe
+RUN mkdir -p /opt/run \
+  && curl -fsSL -o /opt/run/soundbank.sf2 "${GENERALUSER_URL}" \
+  && echo "${GENERALUSER_SHA256}  /opt/run/soundbank.sf2" | sha256sum -c - \
+  && chmod a+r /opt/run/soundbank.sf2
 
 WORKDIR /opt/teavm
 COPY pom.xml /opt/teavm/pom.xml
