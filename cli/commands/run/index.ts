@@ -28,6 +28,7 @@ async function bundleTemplate({
 
   const instance = await rollup({
     cache: false,
+    preserveSymlinks: true,
     input: path.join(web, './boot.ts'),
     plugins: [
       plugins.typescript({
@@ -40,7 +41,9 @@ async function bundleTemplate({
       }),
       plugins.stripNodePrefix(),
       plugins.commonjs(),
-      plugins.resolve(),
+      plugins.resolve({
+        modulePaths: ['/$bunfs/root'],
+      }),
       plugins.minify(),
       plugins.html(path.join(web, 'template.html')),
     ],

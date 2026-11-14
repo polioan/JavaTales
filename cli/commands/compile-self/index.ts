@@ -499,6 +499,10 @@ export async function compileSelf(options: CompileSelf) {
         assets: [
           path.join(modules, 'tslib'),
           path.join(modules, 'typescript', 'lib'),
+          path.join(modules, 'spessasynth_lib'),
+          path.join(modules, 'spessasynth_core'),
+          path.join(modules, 'fflate'),
+          path.join(modules, 'stb-vorbis'),
         ],
       },
       plugins: [standalonePlugin(rollupNodeFile, embedded)],
